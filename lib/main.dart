@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -51,6 +52,7 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   final _formKey = GlobalKey<FormState>();
   final _phoneController = TextEditingController();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   @override
   void dispose() {
@@ -69,11 +71,33 @@ class _MyHomePageState extends State<MyHomePage> {
     return null;
   }
 
-  void _submitForm() {
+  void _submitForm() async {
     if (_formKey.currentState!.validate()) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => MainMenu()),
+      await _auth.verifyPhoneNumber(
+        phoneNumber: '+82${_phoneController.text.substring(1)}',
+        verificationCompleted: (PhoneAuthCredential credential) async {
+          await _auth.signInWithCredential(credential);
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => MainMenu()),
+          );
+        },
+        verificationFailed: (FirebaseAuthException e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('인증에 실패했습니다: ${e.message}')),
+          );
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => OTPVerificationPage(
+                verificationId: verificationId,
+              ),
+            ),
+          );
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {},
       );
     }
   }
@@ -106,6 +130,72 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class OTPVerificationPage extends StatefulWidget {
+  final String verificationId;
+
+  OTPVerificationPage({required this.verificationId});
+
+  @override
+  _OTPVerificationPageState createState() => _OTPVerificationPageState();
+}
+
+class _OTPVerificationPageState extends State<OTPVerificationPage> {
+  final _otpController = TextEditingController();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  @override
+  void dispose() {
+    _otpController.dispose();
+    super.dispose();
+  }
+
+  void _verifyOTP() async {
+    try {
+      final PhoneAuthCredential credential = PhoneAuthProvider.credential(
+        verificationId: widget.verificationId,
+        smsCode: _otpController.text,
+      );
+      await _auth.signInWithCredential(credential);
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => MainMenu()),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('OTP 인증에 실패했습니다: $e')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('OTP 인증'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: <Widget>[
+            TextFormField(
+              controller: _otpController,
+              decoration: InputDecoration(
+                labelText: 'OTP 코드',
+              ),
+              keyboardType: TextInputType.number,
+            ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _verifyOTP,
+              child: Text('인증'),
+            ),
+          ],
         ),
       ),
     );
@@ -161,7 +251,8 @@ class _BasicDataFormState extends State<BasicDataPage> {
   void _saveDataAndNavigate(BuildContext context) async {
     if (_formKey.currentState!.validate()) {
       try {
-        DocumentReference docRef = await _firestore.collection('BasicHealthDataRecords').add({
+        DocumentReference docRef =
+            await _firestore.collection('BasicHealthDataRecords').add({
           'age': _ageController.text,
           'gender': _genderController.text,
           'height': _heightController.text,
@@ -266,7 +357,10 @@ class _SummaryScreenState1 extends State<SummaryScreen1> {
 
   Future<void> _fetchData() async {
     try {
-      DocumentSnapshot docSnapshot = await _firestore.collection('BasicHealthDataRecords').doc(widget.documentId1).get();
+      DocumentSnapshot docSnapshot = await _firestore
+          .collection('BasicHealthDataRecords')
+          .doc(widget.documentId1)
+          .get();
       final data = docSnapshot.data() as Map<String, dynamic>;
       setState(() {
         age = data['age'];
@@ -295,7 +389,10 @@ class _SummaryScreenState1 extends State<SummaryScreen1> {
               onPressed: _fetchData,
               child: Text('기본 건강 정보 조회'),
             ),
-            if (age != null && gender != null && height != null && weight != null)
+            if (age != null &&
+                gender != null &&
+                height != null &&
+                weight != null)
               Text('나이: $age\n성별: $gender\n키: $height\n체중: $weight'),
           ],
         ),
@@ -318,7 +415,8 @@ class _BloodPressureFormState extends State<MeasureingPage> {
   void _saveDataAndNavigate(BuildContext context) async {
     if (_formKey.currentState!.validate()) {
       try {
-        DocumentReference docRef = await _firestore.collection('bloodPressureRecords').add({
+        DocumentReference docRef =
+            await _firestore.collection('bloodPressureRecords').add({
           'maxPressure': _maxPressureController.text,
           'minPressure': _minPressureController.text,
           'timestamp': FieldValue.serverTimestamp(),
@@ -398,7 +496,10 @@ class _SummaryScreenState2 extends State<SummaryScreen2> {
 
   Future<void> _fetchData() async {
     try {
-      DocumentSnapshot docSnapshot = await _firestore.collection('bloodPressureRecords').doc(widget.documentId2).get();
+      DocumentSnapshot docSnapshot = await _firestore
+          .collection('bloodPressureRecords')
+          .doc(widget.documentId2)
+          .get();
       final data = docSnapshot.data() as Map<String, dynamic>;
       setState(() {
         maxPressure = data['maxPressure'];
