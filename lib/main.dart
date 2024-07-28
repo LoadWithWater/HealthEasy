@@ -1,41 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  try {
-    await Firebase.initializeApp();
-    runApp(MyApp());
-  } catch (e) {
-    runApp(ErrorApp(Exception(e.toString())));
-  }
-}
-
-class ErrorApp extends StatelessWidget {
-  final Exception error;
-
-  ErrorApp(this.error);
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Error',
-      home: Scaffold(
-        body: Center(
-          child: Text('앱 초기화에 실패했습니다: ${error.toString()}'),
-        ),
-      ),
-    );
-  }
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Phone Number Input',
+      title: 'Firebase Integration',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
@@ -252,7 +233,7 @@ class _BasicDataFormState extends State<BasicDataPage> {
     if (_formKey.currentState!.validate()) {
       try {
         DocumentReference docRef =
-            await _firestore.collection('BasicHealthDataRecords').add({
+        await _firestore.collection('BasicHealthDataRecords').add({
           'age': _ageController.text,
           'gender': _genderController.text,
           'height': _heightController.text,
@@ -267,6 +248,7 @@ class _BasicDataFormState extends State<BasicDataPage> {
           ),
         );
       } catch (e) {
+        print('Error: $e');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('데이터 저장에 실패했습니다: $e')),
         );
@@ -369,6 +351,7 @@ class _SummaryScreenState1 extends State<SummaryScreen1> {
         weight = data['weight'];
       });
     } catch (e) {
+      print('Error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('데이터 불러오기에 실패했습니다: $e')),
       );
@@ -416,7 +399,7 @@ class _BloodPressureFormState extends State<MeasureingPage> {
     if (_formKey.currentState!.validate()) {
       try {
         DocumentReference docRef =
-            await _firestore.collection('bloodPressureRecords').add({
+        await _firestore.collection('bloodPressureRecords').add({
           'maxPressure': _maxPressureController.text,
           'minPressure': _minPressureController.text,
           'timestamp': FieldValue.serverTimestamp(),
@@ -429,6 +412,7 @@ class _BloodPressureFormState extends State<MeasureingPage> {
           ),
         );
       } catch (e) {
+        print('Error: $e');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('데이터 저장에 실패했습니다: $e')),
         );
@@ -506,6 +490,7 @@ class _SummaryScreenState2 extends State<SummaryScreen2> {
         minPressure = data['minPressure'];
       });
     } catch (e) {
+      print('Error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('데이터 불러오기에 실패했습니다: $e')),
       );
